@@ -1,0 +1,33 @@
+{
+  "name": "jwe_example",
+  "version": "1.0.0",
+  "description": "JWE and RSA Examples for NodeJS",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "engines" : { "node" : ">=12" },
+  "engineStrict": true,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/psenger/jwe_example.git"
+  },
+  "keywords": [
+    "JWE",
+    "jwe",
+    "RSA",
+    "rsa",
+    "Example",
+    "example",
+    "nodejs",
+    "crypto",
+    "Crypto",
+    "help"
+  ],
+  "author": "Philip A Senger <philip.a.senger@cngrgroup.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/psenger/jwe_example/issues"
+  },
+  "homepage": "https://github.com/psenger/jwe_example#readme"
+}
