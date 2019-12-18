@@ -22,3 +22,6 @@ This is a Node JS version 12 implementation with OpenSSL. It is version specific
 
 ``AES`` - AES Encryption, on the other hand, in some modes, for instance CBC or CFB uses IV. These is because AES is a Block Cipher Mode of Operation .
 
+## ENV
+
+``PEM_PASSWORD`` - is the pass phrase used to build the pem file.
