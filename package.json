@@ -4,7 +4,8 @@
   "description": "JWE and RSA Examples for NodeJS",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start":"node index.js"
   },
   "engines" : { "node" : ">=12" },
   "engineStrict": true,
