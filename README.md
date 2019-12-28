@@ -25,3 +25,9 @@ This is a Node JS version 12 implementation with OpenSSL. It is version specific
 ## ENV
 
 ``PEM_PASSWORD`` - is the pass phrase used to build the pem file.
+
+## Notes
+
+JWE, can be used to encrypt any mime type ( which can be declared via [typ](https://www.rfc-editor.org/rfc/rfc7515.html#section-4.1.9) in the JOSE header ). However, for simplicity and illustration, these examples assume the content is a String. 
+
+Furthermore, in this example, I use GZIP for the ``zip`` declaration.
