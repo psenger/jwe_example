@@ -1,27 +1,37 @@
 import {
+    CipherGCM,
     constants,
     createCipheriv,
     createDecipheriv,
+    DecipherGCM,
     KeyLike,
     privateDecrypt,
     publicEncrypt,
     randomBytes,
     RsaPrivateKey,
-    RsaPublicKey,
-    CipherGCM
+    RsaPublicKey
 } from "crypto";
+import {constants as zConstants, gunzipSync, gzipSync} from 'zlib';
 
-import { gunzipSync, gzipSync, constants as zConstants } from 'zlib';
-import {stringify} from "querystring";
-
-enum ZIP {
+export enum ZIP {
     GZIP = "GZIP"
 }
-interface JOSE {
+export interface JOSE {
     enc: string;
     alg: string;
-    zip?: ZIP
+    zip?: ZIP;
+    cty?: MEDIA_TYPES;
 }
+
+export enum MEDIA_TYPES {
+    JSON = 'json', // at this time it only makes sense to support application/json.
+}
+
+export interface OPTIONS {
+    zip?: ZIP,
+    cty: MEDIA_TYPES
+}
+
 export default class JWE {
 
     passphrase: string;
@@ -45,50 +55,73 @@ export default class JWE {
         this.privateKey = privateKey;
     }
 
-    static base64url(value: string): string {
-        return Buffer
-            .from(value, 'utf8')
-            .toString('base64')
+    static toSafeString(obj: any): string {
+        if (typeof obj === 'string')
+            return obj;
+        if (typeof obj === 'number' || Buffer.isBuffer(obj))
+            return obj.toString();
+        return JSON.stringify(obj);
+    };
+
+    static base64url( value: Buffer ): string {
+        return value.toString('base64')
             .replace(/=/g, '')
             .replace(/\+/g, '-')
             .replace(/\//g, '_');
     }
 
-    static lru46esab (value: string): string {
-        return Buffer.from(value,'base64')
-            .toString('utf8')
-            .replace('-', '+')
-            .replace('_', '/');
+    static lru46esab ( value: string ): Buffer {
+       return Buffer.from (
+           value.replace('-', '+').replace('_', '/'),
+           'base64'
+       );
     }
 
-    private AsymmetricEncryptOffPublicKey ( value: Buffer ): string {
+    private AsymmetricEncryptOffPublicKey ( value: Buffer ): Buffer {
         // If key ( A PEM encoded public key ) is a string, it is treated as the
         // key with no passphrase and will use RSA_PKCS1_OAEP_PADDING.
         // We are passing as KeyLike Typescript object, which means
         // we need to declare the padding.
-        const key: RsaPublicKey = {
-            key: this.publicKey,
+        const key: KeyLike = this.publicKey;
+        const public_key: RsaPublicKey = {
+            key,
             padding: constants.RSA_PKCS1_OAEP_PADDING
         };
         // return publicEncrypt( key, value ).toString('hex').toUpperCase();
-        return publicEncrypt( key, value ).toString('hex').toUpperCase();
+        return publicEncrypt( public_key, value );//.toString('hex').toUpperCase();
     }
 
-    private AsymmetricDecryptOffPrivateKey ( value: string ): Buffer {
-        const key: KeyLike = this.privateKey;
-        const private_key: RsaPrivateKey = {
-            key,
-            passphrase: this.passphrase,
-            oaepHash: 'sha256',
-            padding: constants.RSA_PKCS1_OAEP_PADDING
-        };
-        return privateDecrypt( private_key, Buffer.from( value, 'hex' ) );
+    private AsymmetricDecryptOffPrivateKey ( value: Buffer ): Buffer {
+        try {
+            const key: KeyLike = this.privateKey;
+            const private_key: RsaPrivateKey = {
+                key,
+                passphrase: this.passphrase,
+                // oaepHash: 'sha256', - this does not appear to work on Mac OSX with OpenSSL 1.0.1g 7 Apr 2014 or OpenSSL 1.1.1d  10 Sep 2019 ( via Brew )
+                padding: constants.RSA_PKCS1_OAEP_PADDING
+            };
+            return privateDecrypt(private_key, value);
+        } catch (e) {
+            console.log(e);
+            throw e;
+        }
+    }
+
+    private isObject(thing: any) {
+        return Object.prototype.toString.call(thing) === '[object Object]';
+    }
+
+    private safeJsonParse(thing: any) {
+        if (this.isObject(thing))
+            return thing;
+        try { return JSON.parse(thing); }
+        catch (e) { return undefined; }
     }
 
     /**
      * https://tools.ietf.org/html/rfc7516
      */
-    public encrypt ( value: string, options?: any ): string {
+    public encrypt ( value: string, options: OPTIONS ): string {
         // Javascript Object Signing and Encryption (JOSE ) - describe the encryption
         // applied to the plaintext and optionally additional properties of the JWE.
         const jose: JOSE = { alg: JWE.alg, enc: JWE.enc };
@@ -99,7 +132,10 @@ export default class JWE {
             }
             jose.zip = ZIP.GZIP;
         }
-        const joseStr : string = Buffer.from( JSON.stringify( jose ), 'utf8').toString('hex').toUpperCase();
+        if ( options.cty !== MEDIA_TYPES.JSON ) {
+            throw new Error(`Unsupported "cty" detected in JOSE. currently only "${MEDIA_TYPES.JSON}" supported`);
+        }
+        jose.cty = MEDIA_TYPES.JSON;
         // Content Encryption Key (CEK) - ( this is the symmetrical key, which will later be
         // encrypted asymmetrically ) A new symmetric key generated to encrypt the Plaintext
         // for the recipient to produce the Ciphertext, which is encrypted to the recipient as
@@ -115,22 +151,22 @@ export default class JWE {
         // each block with the previous block and cannot be written in parallel and
         // Initialization Vector is required because AES is a Block Encryption method.
         // AES is a block cipher mode type of encryption
-        const cipher: CipherGCM = createCipheriv(  'aes-256-gcm', cek, iv );
-        let cipherText: Buffer;
+        const CIPHER: CipherGCM = createCipheriv(  'aes-256-gcm', cek, iv );
+        let content: Buffer;
         if ( options && options.zip && options.zip === ZIP.GZIP ) {
-            const b : Buffer = gzipSync( value, {
-                level: zConstants.Z_BEST_COMPRESSION
-            } );
-            cipherText = cipher.update( b );
+            content = CIPHER.update(
+                gzipSync( value, {
+                    level: zConstants.Z_BEST_COMPRESSION
+                } )
+            );
         } else {
-            cipherText = cipher.update( value );
+            content = CIPHER.update( value );
         }
-        const cipherTextHex = Buffer.concat([ cipherText, cipher.final() ] ).toString('hex').toUpperCase();
-        const tag: Buffer = cipher.getAuthTag();
-        const cekStr : string = this.AsymmetricEncryptOffPublicKey( cek ); // we asymmetrically encrypt the key with the users Public Key.
-        const ivStr : string = iv.toString('hex').toUpperCase();// IV and Tag are not encrypted with Asymmetric encryption
-        const tagStr: string = tag.toString('hex').toUpperCase();
-        return `${ JWE.base64url( joseStr ) }.${ JWE.base64url( cekStr ) }.${ JWE.base64url( ivStr ) }.${ JWE.base64url( cipherTextHex ) }.${ JWE.base64url( tagStr ) }`
+        const cipherText = Buffer.concat([ content, CIPHER.final() ] );
+        const tag: Buffer = CIPHER.getAuthTag();
+        const ecek : Buffer = this.AsymmetricEncryptOffPublicKey( cek ); // we asymmetrically encrypt the key with the users Public Key.
+
+        return `${ JWE.base64url( Buffer.from( JWE.toSafeString( jose ),'utf8' ) ) }.${ JWE.base64url( ecek ) }.${ JWE.base64url( iv ) }.${ JWE.base64url( cipherText ) }.${ JWE.base64url( tag ) }`
     }
 
     public decrypt ( payload: string ): string {
@@ -139,8 +175,9 @@ export default class JWE {
         let ivStr: string;
         let cipherTextStr: string;
         let tagStr: string;
-        [joseStr, cekStr, ivStr, cipherTextStr, tagStr] = payload.split('.').map(JWE.lru46esab);
-        let jose: JOSE = JSON.parse( Buffer.from( joseStr, 'hex').toString('utf8'));
+        [joseStr, cekStr, ivStr, cipherTextStr, tagStr] = payload.split('.');
+        // @TODO: need to exit here, if there are any values equal to null
+        let jose: JOSE = this.safeJsonParse( Buffer.from(joseStr, 'base64' ).toString( 'utf8' ) );
         if ( jose.alg !== 'RSA-OAEP-256' ) {
             throw new Error('Unsupported "alg" detected in JOSE. currently only "RSA-OAEP-256" supported');
         }
@@ -150,20 +187,14 @@ export default class JWE {
         if ( jose.zip && jose.zip !== ZIP.GZIP ) {
             throw new Error(`Unsupported "zip" detected in JOSE. currently only "${ZIP.GZIP}" supported`);
         }
-        const iv: Buffer = Buffer.from(ivStr, 'hex');
-        const cek: Buffer = this.AsymmetricDecryptOffPrivateKey( cekStr );
-        const decipher = createDecipheriv( 'aes-256-gcm', cek, iv );
-        const tag: Buffer = Buffer.from( tagStr, 'hex' );
-        decipher.setAuthTag(tag);
-        let cipherText: Buffer = decipher.update( Buffer.from( cipherTextStr, 'hex' ) );
+        const cek: Buffer = this.AsymmetricDecryptOffPrivateKey( JWE.lru46esab( cekStr ) )
+        const decipher: DecipherGCM = createDecipheriv( 'aes-256-gcm', cek, JWE.lru46esab( ivStr ) );
+        decipher.setAuthTag( JWE.lru46esab( tagStr ) );
+        let text: Buffer = decipher.update( JWE.lru46esab( cipherTextStr ) );
         if ( jose.zip && jose.zip === ZIP.GZIP ) {
-            cipherText = gunzipSync( cipherText , {
-                level: zConstants.Z_BEST_COMPRESSION
-            } )
-        } else {
-
+            return gunzipSync(text, {level: zConstants.Z_BEST_COMPRESSION}).toString('utf8');
         }
-        return cipherText.toString('utf8');
+        return text.toString('utf8');
     }
 
 }

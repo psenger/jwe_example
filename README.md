@@ -22,6 +22,36 @@ This is a Node JS version 12 implementation with OpenSSL. It is version specific
 
 ``AES`` - AES Encryption, on the other hand, in some modes, for instance CBC or CFB uses IV. These is because AES is a Block Cipher Mode of Operation .
 
+## Understanding the format
+
+A JWE payload is a set of 5 base64url encoded sections. Each section ( like JWT ) is separated by period. 
+
+* The first section is a JSON object as an encoded UTF8 string representing the Javascript Object Signing and Encryption Header ( JOSE ) and in this example is the blue set. See section JOSE for valid values.
+* The second, is CEK or Content Encryption Key, this key is Asymmetrically encrypted and is the key for the content. It changes on every request and in this example is the green set.
+* The third set is the Initialization Vector ( IV ) and is a fixed-size random input similar to a nonce used to randomize the content with a "seed". This is used for CGM. In this example it is the color purple.
+* The red section is the encrypted content, it is encrypted with the CEK in a Symmetrical key.
+* The final section ( orange ), is the authTag which is the message authentication code (MAC) calculated during the encryption.
+
+<span style="color:blue">N0IyMjYxNkM2NzIyM0EyMjUyNTM0MTJENEY0MTQ1NTAyRDMyMzUzNjIyMkMyMjY1NkU2MzIyM0EyMjQxMzIzNTM2NDc0MzREMjI3RA</span>.<span style="color:green">M0VFQzY1QTdGRTlDOTJEQzg4OTc2RTk5RjU4MkYwMjZBNEEyNzIwNkVDNDU3QUJERjA4MDA4MjVBOUJBRDVBRDVDQTFEMTk2NTIzMzgwOTdFRDBBMjQ4N0VBNjZCMjI3REE1RjUzOUI5MDYyQjFGOTk3NERENUU2MjY0QkZFN0I0OTIwQUFCNkNCMDE2ODJCQjQxOEQ5RTIxMEY0MTRDQzA1RDI5NjdBN0UyNjNFQzgyRjlFMzI3NzM3RUY5QjM0MDgxQUI4MzQ1MENGOUQ4QzZCQkFFN0U3REQ0MTJBQUU5RTVDQUY4RjgxNDZBOEU2QjYyRkY0NjI0REM0RkJGMEY0MTIzQTg1QzY2RjhFQzExN0QwMjdGNTIzOTAyMDBERUEyOEY4QjNDNDM1NzU3MzMwNUZFRjVFNzExQ0Q5OEJFMzBGQjJDRDlENTM5MUYwNUZEQTE1OUJGMjU3QkZBODk1OTZDRjQxQzc2MEY2OUI3QTg1Q0RCQkYyRDdENzRGNkU4MzlDNkY1MEFFNkRDQjAzMUMyQTMyRjZDRkEyNkU2ODVFMkZBQkI0NThBM0FBMjgwRUJFQUJFRjI1MEJFQUJCMTYxMkFGMDMzRDk4MTFDOEJEODdENTU2M0QyRTcyNThGMkFEQUUzRDIzNUVGMzI4RDYwQTAzRDkyQkZBNjY</span>.<span style="color:purple">NTUzQzUwQjJFOUQ4RDM5QTFDQTgzQzc2MjE4Q0EyRThCNTY3NTgwMTNDM0EzQjMzNkQxNUM5RUIxQzc4Nzc5OQ</span>.<span style="color:red">ODUyM0E2NTUyNDM2RkI5MjYyQjY0ODgyMjQ1N0Q3MDZCMUFBQzgxNTExRDVGM0MwMjkzQjk1NkExOTNDQURCM0REOUU4MDg0NTk1NUZFNDA1NzQ0MjQxRThBMTM2MDEwQTQ4NzQyRTlBOEU1QzI3NjY4Mjg2NjFEMDhCRTUyRUJBNkMwQjEwRTk5NDU3MDNDNTNFMTgzRUI0RDZDNUY2RjNBQTU1RTM4</span>.<span style="color:orange">QTNEQjM2REI3NTBDQzc1REJFODlDOEVBOTA1RDZBRkY</span>
+ 
+## JOSE format
+
+```JSON
+{ 
+    alg: "RSA-OAEP-256", 
+    enc: "A256GCM",
+    zip?: 'GZIP',
+    cty: 'json',
+    kid: < to be installed and operational later >
+}
+```
+
+* _alg_ - RSA-OAEP-256 - RSAES OAEP using SHA-256 and MGF1 with SHA-256 See section [section-4.3 of rfc7518](https://www.rfc-editor.org/rfc/rfc7518#section-4.3) This value is hard coded simply because of the complexity needed to test the variants. This is also an acceptable level of encryption for most civilians and commercial products. 
+* _enc_ - AES 256 GCM - encryption of the content. Again, this was chosen, for simplicity and acceptable level of encryption for most civilians and commercial products.
+* _zip_ - an optional field that indicates if the content is gziped. I think ( @TODO Phil ) that AES does compression, and that would explain why the size is never smaller than the unziped verison.
+* _cty_ - is the mime type of the content, minus the "application/". For example "application/json" is "json" this really is only used to know the string encoding type... which is always UTF8 in this case.
+* _kid_ - Key ID. very important if you want to serve multiple keys with this service 
+
 ## ENV
 
 ``PEM_PASSWORD`` - is the pass phrase used to build the pem file.

@@ -102,7 +102,7 @@ dist
 
 # TernJS port file
 .tern-port
-privkey.pem
-pubkey.pem
+test/privkey.pem
+test/pubkey.pem
 .idea
 .DS_Store
