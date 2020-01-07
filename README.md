@@ -87,7 +87,7 @@ Furthermore, in this example, I use an optional GZIP for the [zip](https://tools
 
 Try to understand a get the [kid](https://tools.ietf.org/html/rfc7516#section-4.1.6) or [jwk](https://tools.ietf.org/html/rfc7516#section-4.1.5) working 
 
-``
+```
 4.1.4.  "jku" (JWK Set URL) Header Parameter
 
    This parameter has the same meaning, syntax, and processing rules as
@@ -111,4 +111,4 @@ Try to understand a get the [kid](https://tools.ietf.org/html/rfc7516#section-4.
    encrypted; this can be used to determine the private key needed to
    decrypt the JWE.  This parameter allows originators to explicitly
    signal a change of key to JWE recipients.
-``   
+```   
