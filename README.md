@@ -79,6 +79,36 @@ This fourth value, is again a base 64 encoded string which is the symmetrically 
 
 ## Notes
 
-JWE, can be used to encrypt any mime type ( which can be declared via [typ](https://www.rfc-editor.org/rfc/rfc7515.html#section-4.1.9) in the JOSE header ). However, for simplicity and illustration, these examples assume the content is a String. 
+JWE, can be used to encrypt any mime type ( which can be declared via [cty](https://www.rfc-editor.org/rfc/rfc7515.html#section-4.1.10) in the JOSE header ). However, for simplicity and illustration, these examples assume the content is a UTF-8 String of JSON. 
 
-Furthermore, in this example, I use GZIP for the ``zip`` declaration.
+Furthermore, in this example, I use an optional GZIP for the [zip](https://tools.ietf.org/html/rfc7516#section-4.1.3) declaration.
+
+## TODO
+
+Try to understand a get the [kid](https://tools.ietf.org/html/rfc7516#section-4.1.6) or [jwk](https://tools.ietf.org/html/rfc7516#section-4.1.5) working 
+
+``
+4.1.4.  "jku" (JWK Set URL) Header Parameter
+
+   This parameter has the same meaning, syntax, and processing rules as
+   the "jku" Header Parameter defined in Section 4.1.2 of [JWS], except
+   that the JWK Set resource contains the public key to which the JWE
+   was encrypted; this can be used to determine the private key needed
+   to decrypt the JWE.
+
+4.1.5.  "jwk" (JSON Web Key) Header Parameter
+
+   This parameter has the same meaning, syntax, and processing rules as
+   the "jwk" Header Parameter defined in Section 4.1.3 of [JWS], except
+   that the key is the public key to which the JWE was encrypted; this
+   can be used to determine the private key needed to decrypt the JWE.
+
+4.1.6.  "kid" (Key ID) Header Parameter
+
+   This parameter has the same meaning, syntax, and processing rules as
+   the "kid" Header Parameter defined in Section 4.1.4 of [JWS], except
+   that the key hint references the public key to which the JWE was
+   encrypted; this can be used to determine the private key needed to
+   decrypt the JWE.  This parameter allows originators to explicitly
+   signal a change of key to JWE recipients.
+``   
