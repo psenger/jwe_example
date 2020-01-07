@@ -2,13 +2,13 @@
 
 Written by Philip A Senger
 
-[philip.a.senger@cngrgroup.com](mailto:philip.a.senger@cngrgroup.com) | mobile: 0404466846 | [CV/Resume](http://www.visualcv.com/philipsenger) | [blog](http://www.apachecommonstipsandtricks.blogspot.com/) | [LinkedIn](http://au.linkedin.com/in/philipsenger) | [twitter](http://twitter.com/PSengerDownUndr) | [keybase](https://keybase.io/psenger)
+[philip.a.senger@cngrgroup.com](mailto:philip.a.senger@cngrgroup.com) | mobile: 0404466846 | [LinkedIn](http://au.linkedin.com/in/philipsenger)
 
-JWE is another form of JWT and JWS. It is an attempt to pass an encrypted payload in a way suitable for JSON json.
+JWE is a sub set of JWT and JWS. It is an attempt to pass an encrypted payload in a way suitable for JSON.
 
 ## Requirements
 
-This is a Node JS version 12 implementation with OpenSSL. It is version specific, only because the Crypto API has changed. 
+This is a Node JS version 12 implementation with OpenSSL. It is version specific, only because the Crypto API for NodeJS has changed significantly. 
 
 ## Links I have found helpful
 
@@ -37,6 +37,23 @@ A JWE payload is a set of 5 base64url encoded sections. Each section ( like JWT 
 * The final section ( orange ), is the authTag which is the message authentication code (MAC) calculated during the encryption.
 
 <span style="color:blue">N0IyMjYxNkM2NzIyM0EyMjUyNTM0MTJENEY0MTQ1NTAyRDMyMzUzNjIyMkMyMjY1NkU2MzIyM0EyMjQxMzIzNTM2NDc0MzREMjI3RA</span>.<span style="color:green">M0VFQzY1QTdGRTlDOTJEQzg4OTc2RTk5RjU4MkYwMjZBNEEyNzIwNkVDNDU3QUJERjA4MDA4MjVBOUJBRDVBRDVDQTFEMTk2NTIzMzgwOTdFRDBBMjQ4N0VBNjZCMjI3REE1RjUzOUI5MDYyQjFGOTk3NERENUU2MjY0QkZFN0I0OTIwQUFCNkNCMDE2ODJCQjQxOEQ5RTIxMEY0MTRDQzA1RDI5NjdBN0UyNjNFQzgyRjlFMzI3NzM3RUY5QjM0MDgxQUI4MzQ1MENGOUQ4QzZCQkFFN0U3REQ0MTJBQUU5RTVDQUY4RjgxNDZBOEU2QjYyRkY0NjI0REM0RkJGMEY0MTIzQTg1QzY2RjhFQzExN0QwMjdGNTIzOTAyMDBERUEyOEY4QjNDNDM1NzU3MzMwNUZFRjVFNzExQ0Q5OEJFMzBGQjJDRDlENTM5MUYwNUZEQTE1OUJGMjU3QkZBODk1OTZDRjQxQzc2MEY2OUI3QTg1Q0RCQkYyRDdENzRGNkU4MzlDNkY1MEFFNkRDQjAzMUMyQTMyRjZDRkEyNkU2ODVFMkZBQkI0NThBM0FBMjgwRUJFQUJFRjI1MEJFQUJCMTYxMkFGMDMzRDk4MTFDOEJEODdENTU2M0QyRTcyNThGMkFEQUUzRDIzNUVGMzI4RDYwQTAzRDkyQkZBNjY</span>.<span style="color:purple">NTUzQzUwQjJFOUQ4RDM5QTFDQTgzQzc2MjE4Q0EyRThCNTY3NTgwMTNDM0EzQjMzNkQxNUM5RUIxQzc4Nzc5OQ</span>.<span style="color:red">ODUyM0E2NTUyNDM2RkI5MjYyQjY0ODgyMjQ1N0Q3MDZCMUFBQzgxNTExRDVGM0MwMjkzQjk1NkExOTNDQURCM0REOUU4MDg0NTk1NUZFNDA1NzQ0MjQxRThBMTM2MDEwQTQ4NzQyRTlBOEU1QzI3NjY4Mjg2NjFEMDhCRTUyRUJBNkMwQjEwRTk5NDU3MDNDNTNFMTgzRUI0RDZDNUY2RjNBQTU1RTM4</span>.<span style="color:orange">QTNEQjM2REI3NTBDQzc1REJFODlDOEVBOTA1RDZBRkY</span>
+ 
+For example:
+
+This first value is a base 64 encoded clear text string that is the JOSE header ( a JSON object ) which describes the encryption for the KEY and the Content Encryption. 
+``N0IyMjYxNkM2NzIyM0EyMjUyNTM0MTJENEY0MTQ1NTAyRDMyMzUzNjIyMkMyMjY1NkU2MzIyM0EyMjQxMzIzNTM2NDc0MzREMjI3RA``
+
+This second value is again a base 64 encoded string which contents is a random per request symmetric key ( as described in the JOSE header ) called the CEK which is then asymmetric encrypted ( the format again, is described in the JOSE header ) and base 64 encoded. When the receiver accepts this message, they will use the private key to decrypt the this key, which will then be used to decrypt the content.
+``M0VFQzY1QTdGRTlDOTJEQzg4OTc2RTk5RjU4MkYwMjZBNEEyNzIwNkVDNDU3QUJERjA4MDA4MjVBOUJBRDVBRDVDQTFEMTk2NTIzMzgwOTdFRDBBMjQ4N0VBNjZCMjI3REE1RjUzOUI5MDYyQjFGOTk3NERENUU2MjY0QkZFN0I0OTIwQUFCNkNCMDE2ODJCQjQxOEQ5RTIxMEY0MTRDQzA1RDI5NjdBN0UyNjNFQzgyRjlFMzI3NzM3RUY5QjM0MDgxQUI4MzQ1MENGOUQ4QzZCQkFFN0U3REQ0MTJBQUU5RTVDQUY4RjgxNDZBOEU2QjYyRkY0NjI0REM0RkJGMEY0MTIzQTg1QzY2RjhFQzExN0QwMjdGNTIzOTAyMDBERUEyOEY4QjNDNDM1NzU3MzMwNUZFRjVFNzExQ0Q5OEJFMzBGQjJDRDlENTM5MUYwNUZEQTE1OUJGMjU3QkZBODk1OTZDRjQxQzc2MEY2OUI3QTg1Q0RCQkYyRDdENzRGNkU4MzlDNkY1MEFFNkRDQjAzMUMyQTMyRjZDRkEyNkU2ODVFMkZBQkI0NThBM0FBMjgwRUJFQUJFRjI1MEJFQUJCMTYxMkFGMDMzRDk4MTFDOEJEODdENTU2M0QyRTcyNThGMkFEQUUzRDIzNUVGMzI4RDYwQTAzRDkyQkZBNjY``
+ 
+This third value, is again a base 64 encoded string which is the Initialization Vector. A fixed size random value used to ensure the cipher text is never the same when the underlining value is repeated across encryption ( a known security flaw which undermines the security )
+``NTUzQzUwQjJFOUQ4RDM5QTFDQTgzQzc2MjE4Q0EyRThCNTY3NTgwMTNDM0EzQjMzNkQxNUM5RUIxQzc4Nzc5OQ`` 
+ 
+This fourth value, is again a base 64 encoded string which is the symmetrically encrypted value ( the key being the CEK ).
+``ODUyM0E2NTUyNDM2RkI5MjYyQjY0ODgyMjQ1N0Q3MDZCMUFBQzgxNTExRDVGM0MwMjkzQjk1NkExOTNDQURCM0REOUU4MDg0NTk1NUZFNDA1NzQ0MjQxRThBMTM2MDEwQTQ4NzQyRTlBOEU1QzI3NjY4Mjg2NjFEMDhCRTUyRUJBNkMwQjEwRTk5NDU3MDNDNTNFMTgzRUI0RDZDNUY2RjNBQTU1RTM4``
+ 
+ This last part ( the fifth value ), is again a base 64 encoded string of the Auth Tag. which incorporates check sums and the message authentication code. 
+ ``QTNEQjM2REI3NTBDQzc1REJFODlDOEVBOTA1RDZBRkY``
  
 ## JOSE format
 
