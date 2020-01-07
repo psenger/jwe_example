@@ -2,7 +2,7 @@
   "name": "jwe_example",
   "version": "1.0.0",
   "description": "JWE and RSA Examples for NodeJS",
-  "main": "src/index.js",
+  "main": "dist/index.js",
   "scripts": {
     "test": "jest --forceExit --coverage --verbose",
     "tsc": "tsc"
