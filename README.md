@@ -40,13 +40,13 @@ A JWE payload is a set of 5 base64url encoded sections. Each section ( like JWT 
  
 ## JOSE format
 
-```JSON
+```json
 { 
     "alg": "RSA-OAEP-256", 
     "enc": "A256GCM",
-    "zip": "GZIP',
+    "zip": "GZIP",
     "cty": "json",
-    "kid": "< to be installed and operational later >"
+    "kid": "<to be installed and operational later>"
 }
 ```
 
