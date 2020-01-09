@@ -6,6 +6,8 @@ Written by Philip A Senger
 
 JWE is a sub set of JWT and JWS. It is an attempt to pass an encrypted payload in a way suitable for JSON.
 
+This is a Proof of concept using `JWE Compact Serialization` and `Key Encryption` key mode.
+
 ## Requirements
 
 This is a Node JS version 12 implementation with OpenSSL. It is version specific, only because the Crypto API for NodeJS has changed significantly. 
@@ -15,6 +17,7 @@ This is a Node JS version 12 implementation with OpenSSL. It is version specific
 * [My Favorite Examples of JWT and JWE Compact Serialization](https://medium.facilelogin.com/jwt-jws-and-jwe-for-not-so-dummies-b63310d201a3)
 * [JSON Web Encryption (JWE) Specification](https://tools.ietf.org/html/rfc7516)
 * [Great Examples of 101 Encrypting](https://coolaj86.com/articles/asymmetric-public--private-key-encryption-in-node-js/)
+* [OpenSSL commands](https://www.freecodecamp.org/news/openssl-command-cheatsheet-b441be1e8c4a/)
 * [Could be good](https://openid.net/specs/draft-jones-json-web-encryption-02.html)
 * [Further reading](https://coolaj86.com/articles/asymmetric-public--private-key-encryption-in-node-js/)
 
@@ -26,36 +29,65 @@ This is a Node JS version 12 implementation with OpenSSL. It is version specific
 
 ``AES`` - AES Encryption, on the other hand, in some modes, for instance CBC or CFB uses IV. These is because AES is a Block Cipher Mode of Operation .
 
+``AAD`` - Additional Authenticated Data
+
+``CEK`` - Content Encryption Key
+
+``JWE Auth Tag`` - A value resulting from authenticated encryption of the plaintext with Additional Authenticated Data (AAD).
+
+## Understanding Content Encryption Key Format
+
+There are a couple of ways the CEK can be encrypted, they are listed here. For this purpose we will use the ``Key Encryption``.
+
+* `Key Encryption` - The CEK value is encrypted to the intended recipient using an asymmetric encryption algorithm
+* `Key Wrapping` - The CEK value is encrypted to the intended recipient using a symmetric key wrapping algorithm
+* `Direct Key Agreement` - The key agreement algorithm is used to agree upon the CEK value
+* `Key Agreement with Key Wrapping` - A Key Management Mode in which a key agreement algorithm is used to agree upon a symmetric key used to encrypt the CEK value to the intended recipient using a symmetric key wrapping algorithm
+* `Direct Encryption algorithm` - The CEK value used is the secret symmetric key value shared between the parties.
+      
 ## Understanding the format
 
 A JWE payload is a set of 5 base64url encoded sections. Each section ( like JWT ) is separated by period. 
 
-* The first section is a JSON object as an encoded UTF8 string representing the Javascript Object Signing and Encryption Header ( JOSE ) and in this example is the blue set. See section JOSE for valid values.
-* The second, is CEK or Content Encryption Key, this key is Asymmetrically encrypted and is the key for the content. It changes on every request and in this example is the green set.
-* The third set is the Initialization Vector ( IV ) and is a fixed-size random input similar to a nonce used to randomize the content with a "seed". This is used for CGM. In this example it is the color purple.
-* The red section is the encrypted content, it is encrypted with the CEK in a Symmetrical key.
-* The final section ( orange ), is the authTag which is the message authentication code (MAC) calculated during the encryption.
+For your reference, we will use this JWE and break down each section
 
-<span style="color:blue">N0IyMjYxNkM2NzIyM0EyMjUyNTM0MTJENEY0MTQ1NTAyRDMyMzUzNjIyMkMyMjY1NkU2MzIyM0EyMjQxMzIzNTM2NDc0MzREMjI3RA</span>.<span style="color:green">M0VFQzY1QTdGRTlDOTJEQzg4OTc2RTk5RjU4MkYwMjZBNEEyNzIwNkVDNDU3QUJERjA4MDA4MjVBOUJBRDVBRDVDQTFEMTk2NTIzMzgwOTdFRDBBMjQ4N0VBNjZCMjI3REE1RjUzOUI5MDYyQjFGOTk3NERENUU2MjY0QkZFN0I0OTIwQUFCNkNCMDE2ODJCQjQxOEQ5RTIxMEY0MTRDQzA1RDI5NjdBN0UyNjNFQzgyRjlFMzI3NzM3RUY5QjM0MDgxQUI4MzQ1MENGOUQ4QzZCQkFFN0U3REQ0MTJBQUU5RTVDQUY4RjgxNDZBOEU2QjYyRkY0NjI0REM0RkJGMEY0MTIzQTg1QzY2RjhFQzExN0QwMjdGNTIzOTAyMDBERUEyOEY4QjNDNDM1NzU3MzMwNUZFRjVFNzExQ0Q5OEJFMzBGQjJDRDlENTM5MUYwNUZEQTE1OUJGMjU3QkZBODk1OTZDRjQxQzc2MEY2OUI3QTg1Q0RCQkYyRDdENzRGNkU4MzlDNkY1MEFFNkRDQjAzMUMyQTMyRjZDRkEyNkU2ODVFMkZBQkI0NThBM0FBMjgwRUJFQUJFRjI1MEJFQUJCMTYxMkFGMDMzRDk4MTFDOEJEODdENTU2M0QyRTcyNThGMkFEQUUzRDIzNUVGMzI4RDYwQTAzRDkyQkZBNjY</span>.<span style="color:purple">NTUzQzUwQjJFOUQ4RDM5QTFDQTgzQzc2MjE4Q0EyRThCNTY3NTgwMTNDM0EzQjMzNkQxNUM5RUIxQzc4Nzc5OQ</span>.<span style="color:red">ODUyM0E2NTUyNDM2RkI5MjYyQjY0ODgyMjQ1N0Q3MDZCMUFBQzgxNTExRDVGM0MwMjkzQjk1NkExOTNDQURCM0REOUU4MDg0NTk1NUZFNDA1NzQ0MjQxRThBMTM2MDEwQTQ4NzQyRTlBOEU1QzI3NjY4Mjg2NjFEMDhCRTUyRUJBNkMwQjEwRTk5NDU3MDNDNTNFMTgzRUI0RDZDNUY2RjNBQTU1RTM4</span>.<span style="color:orange">QTNEQjM2REI3NTBDQzc1REJFODlDOEVBOTA1RDZBRkY</span>
- 
-For example:
+```
+N0IyMjYxNkM2NzIyM0EyMjUyNTM0MTJENEY0MTQ1NTAyRDMyMzUzNjIyMkMyMjY1NkU2MzIyM0EyMjQxMzIzNTM2NDc0MzREMjI3RA.M0VFQzY1QTdGRTlDOTJEQzg4OTc2RTk5RjU4MkYwMjZBNEEyNzIwNkVDNDU3QUJERjA4MDA4MjVBOUJBRDVBRDVDQTFEMTk2NTIzMzgwOTdFRDBBMjQ4N0VBNjZCMjI3REE1RjUzOUI5MDYyQjFGOTk3NERENUU2MjY0QkZFN0I0OTIwQUFCNkNCMDE2ODJCQjQxOEQ5RTIxMEY0MTRDQzA1RDI5NjdBN0UyNjNFQzgyRjlFMzI3NzM3RUY5QjM0MDgxQUI4MzQ1MENGOUQ4QzZCQkFFN0U3REQ0MTJBQUU5RTVDQUY4RjgxNDZBOEU2QjYyRkY0NjI0REM0RkJGMEY0MTIzQTg1QzY2RjhFQzExN0QwMjdGNTIzOTAyMDBERUEyOEY4QjNDNDM1NzU3MzMwNUZFRjVFNzExQ0Q5OEJFMzBGQjJDRDlENTM5MUYwNUZEQTE1OUJGMjU3QkZBODk1OTZDRjQxQzc2MEY2OUI3QTg1Q0RCQkYyRDdENzRGNkU4MzlDNkY1MEFFNkRDQjAzMUMyQTMyRjZDRkEyNkU2ODVFMkZBQkI0NThBM0FBMjgwRUJFQUJFRjI1MEJFQUJCMTYxMkFGMDMzRDk4MTFDOEJEODdENTU2M0QyRTcyNThGMkFEQUUzRDIzNUVGMzI4RDYwQTAzRDkyQkZBNjY.NTUzQzUwQjJFOUQ4RDM5QTFDQTgzQzc2MjE4Q0EyRThCNTY3NTgwMTNDM0EzQjMzNkQxNUM5RUIxQzc4Nzc5OQ.ODUyM0E2NTUyNDM2RkI5MjYyQjY0ODgyMjQ1N0Q3MDZCMUFBQzgxNTExRDVGM0MwMjkzQjk1NkExOTNDQURCM0REOUU4MDg0NTk1NUZFNDA1NzQ0MjQxRThBMTM2MDEwQTQ4NzQyRTlBOEU1QzI3NjY4Mjg2NjFEMDhCRTUyRUJBNkMwQjEwRTk5NDU3MDNDNTNFMTgzRUI0RDZDNUY2RjNBQTU1RTM4.QTNEQjM2REI3NTBDQzc1REJFODlDOEVBOTA1RDZBRkY
+```
 
-This first value is a base 64 encoded clear text string that is the JOSE header ( a JSON object ) which describes the encryption for the KEY and the Content Encryption. 
-``N0IyMjYxNkM2NzIyM0EyMjUyNTM0MTJENEY0MTQ1NTAyRDMyMzUzNjIyMkMyMjY1NkU2MzIyM0EyMjQxMzIzNTM2NDc0MzREMjI3RA``
+### Section One - JOSE
 
-This second value is again a base 64 encoded string which contents is a random per request symmetric key ( as described in the JOSE header ) called the CEK which is then asymmetric encrypted ( the format again, is described in the JOSE header ) and base 64 encoded. When the receiver accepts this message, they will use the private key to decrypt the this key, which will then be used to decrypt the content.
-``M0VFQzY1QTdGRTlDOTJEQzg4OTc2RTk5RjU4MkYwMjZBNEEyNzIwNkVDNDU3QUJERjA4MDA4MjVBOUJBRDVBRDVDQTFEMTk2NTIzMzgwOTdFRDBBMjQ4N0VBNjZCMjI3REE1RjUzOUI5MDYyQjFGOTk3NERENUU2MjY0QkZFN0I0OTIwQUFCNkNCMDE2ODJCQjQxOEQ5RTIxMEY0MTRDQzA1RDI5NjdBN0UyNjNFQzgyRjlFMzI3NzM3RUY5QjM0MDgxQUI4MzQ1MENGOUQ4QzZCQkFFN0U3REQ0MTJBQUU5RTVDQUY4RjgxNDZBOEU2QjYyRkY0NjI0REM0RkJGMEY0MTIzQTg1QzY2RjhFQzExN0QwMjdGNTIzOTAyMDBERUEyOEY4QjNDNDM1NzU3MzMwNUZFRjVFNzExQ0Q5OEJFMzBGQjJDRDlENTM5MUYwNUZEQTE1OUJGMjU3QkZBODk1OTZDRjQxQzc2MEY2OUI3QTg1Q0RCQkYyRDdENzRGNkU4MzlDNkY1MEFFNkRDQjAzMUMyQTMyRjZDRkEyNkU2ODVFMkZBQkI0NThBM0FBMjgwRUJFQUJFRjI1MEJFQUJCMTYxMkFGMDMzRDk4MTFDOEJEODdENTU2M0QyRTcyNThGMkFEQUUzRDIzNUVGMzI4RDYwQTAzRDkyQkZBNjY``
- 
-This third value, is again a base 64 encoded string which is the Initialization Vector. A fixed size random value used to ensure the cipher text is never the same when the underlining value is repeated across encryption ( a known security flaw which undermines the security )
+This first value is a base 64 encoded clear text UTF8 string that is the JOSE header ( a JSON object ) which describes the encryption for the KEY and the Content Encryption. Refer to the [JOSE format](#JOSE-format) section for a list of possible values.
+
+```N0IyMjYxNkM2NzIyM0EyMjUyNTM0MTJENEY0MTQ1NTAyRDMyMzUzNjIyMkMyMjY1NkU2MzIyM0EyMjQxMzIzNTM2NDc0MzREMjI3RA```
+
+### Section Two - CEK
+
+This second value is again a base 64 encoded UTF8 string which may or may not contain a key. This key is called the Content Encryption Key ( CEK ) if present, it is used to encrypted the content. The encryption schema is described in the JOSE header and is based on the agreed upon Key Format see [Understanding Content Encryption Key Format](#Understanding-Content-Encryption-Key-Format). When the Key format is `Key Encryption` ( which is the case for this example ) the key is a symmetrical key and will be random per request and will be encrypted with the the private asymmetrical key.
+
+```M0VFQzY1QTdGRTlDOTJEQzg4OTc2RTk5RjU4MkYwMjZBNEEyNzIwNkVDNDU3QUJERjA4MDA4MjVBOUJBRDVBRDVDQTFEMTk2NTIzMzgwOTdFRDBBMjQ4N0VBNjZCMjI3REE1RjUzOUI5MDYyQjFGOTk3NERENUU2MjY0QkZFN0I0OTIwQUFCNkNCMDE2ODJCQjQxOEQ5RTIxMEY0MTRDQzA1RDI5NjdBN0UyNjNFQzgyRjlFMzI3NzM3RUY5QjM0MDgxQUI4MzQ1MENGOUQ4QzZCQkFFN0U3REQ0MTJBQUU5RTVDQUY4RjgxNDZBOEU2QjYyRkY0NjI0REM0RkJGMEY0MTIzQTg1QzY2RjhFQzExN0QwMjdGNTIzOTAyMDBERUEyOEY4QjNDNDM1NzU3MzMwNUZFRjVFNzExQ0Q5OEJFMzBGQjJDRDlENTM5MUYwNUZEQTE1OUJGMjU3QkZBODk1OTZDRjQxQzc2MEY2OUI3QTg1Q0RCQkYyRDdENzRGNkU4MzlDNkY1MEFFNkRDQjAzMUMyQTMyRjZDRkEyNkU2ODVFMkZBQkI0NThBM0FBMjgwRUJFQUJFRjI1MEJFQUJCMTYxMkFGMDMzRDk4MTFDOEJEODdENTU2M0QyRTcyNThGMkFEQUUzRDIzNUVGMzI4RDYwQTAzRDkyQkZBNjY```
+
+### Section Three - IV
+
+This third value, is again a base 64 encoded string which is the Initialization Vector ( if applicable to the encryption method ). An IV is a fixed size random value used to ensure the cipher text is never the same when the underlining value is repeated across encryption ( a known security flaw which undermines the security ) 
+
 ``NTUzQzUwQjJFOUQ4RDM5QTFDQTgzQzc2MjE4Q0EyRThCNTY3NTgwMTNDM0EzQjMzNkQxNUM5RUIxQzc4Nzc5OQ`` 
  
-This fourth value, is again a base 64 encoded string which is the symmetrically encrypted value ( the key being the CEK ).
-``ODUyM0E2NTUyNDM2RkI5MjYyQjY0ODgyMjQ1N0Q3MDZCMUFBQzgxNTExRDVGM0MwMjkzQjk1NkExOTNDQURCM0REOUU4MDg0NTk1NUZFNDA1NzQ0MjQxRThBMTM2MDEwQTQ4NzQyRTlBOEU1QzI3NjY4Mjg2NjFEMDhCRTUyRUJBNkMwQjEwRTk5NDU3MDNDNTNFMTgzRUI0RDZDNUY2RjNBQTU1RTM4``
+### Section Four - Content
  
- This last part ( the fifth value ), is again a base 64 encoded string of the Auth Tag. which incorporates check sums and the message authentication code. 
- ``QTNEQjM2REI3NTBDQzc1REJFODlDOEVBOTA1RDZBRkY``
+This fourth value, is again a base 64 encoded string which for the purpose of this demonstration is the symmetrically encrypted value ( the key being the asymmetrical encrypted CEK which is a symmetrical key and based on the Key format `Key Encryption` ) 
+
+``ODUyM0E2NTUyNDM2RkI5MjYyQjY0ODgyMjQ1N0Q3MDZCMUFBQzgxNTExRDVGM0MwMjkzQjk1NkExOTNDQURCM0REOUU4MDg0NTk1NUZFNDA1NzQ0MjQxRThBMTM2MDEwQTQ4NzQyRTlBOEU1QzI3NjY4Mjg2NjFEMDhCRTUyRUJBNkMwQjEwRTk5NDU3MDNDNTNFMTgzRUI0RDZDNUY2RjNBQTU1RTM4``
+
+### Section Five - Auth Tag
+
+This last part ( the fifth value ), is again a base 64 encoded string called the Auth Tag. It incorporates the message authentication code which is the AAD ( Additional Authenticated Data ) needed to validate the data. According to the specification, should be the Jose Header.
+
+``QTNEQjM2REI3NTBDQzc1REJFODlDOEVBOTA1RDZBRkY``
  
 ## JOSE format
+
+For this purpose we will use the Key format `Key Encryption`. This means the encrypted content will be encrypted by `A256GCM` and the Key will be `RSA-OAEP-256`. The sender, will take the Public Key and encrypt the Private Key ( this is called the CEK ). the private key will encrypt the content.
 
 ```json
 { 

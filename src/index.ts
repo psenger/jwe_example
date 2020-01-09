@@ -22,7 +22,14 @@ export interface JOSE {
     enc: string;
     alg: string;
     zip?: ZIP;
+    /**
+     * The content of the message
+     */
     cty?: MEDIA_TYPES;
+    /**
+     * The public key to which the JWE was encrypted; this can be used to determine the private key needed to decrypt the JWE.
+     */
+    jwk?: string;
 }
 
 export enum MEDIA_TYPES {
@@ -220,6 +227,8 @@ export default class JWE {
          * When using an authenticated encryption mode ( like GCM ), cipher.getAuthTag() method
          * returns a Buffer containing the authentication tag that has been computed from the given data.
          *
+         * Message Authentication Code (MAC)
+         *
          * The cipher.getAuthTag() method should only be called after encryption has been completed using the
          * cipher.final() method.
          */
@@ -231,52 +240,71 @@ export default class JWE {
 
     /**
      * JWE Decrypt
+     *
+     * When decrypting, particular care must be taken not to allow the JWE recipient to be used as an oracle for
+     * decrypting messages.  RFC 3218 should be consulted for specific countermeasures to attacks on RSAES-PKCS1-v1_5.
+     *
+     * An attacker might modify the contents of the "alg" Header Parameter from "RSA-OAEP" to "RSA1_5" in order to
+     * generate a formatting error that can be detected and used to recover the CEK even if RSAES-OAEP was used to
+     * encrypt the CEK.  It is therefore particularly important to report all formatting errors to the CEK, Additional
+     * Authenticated Data, or ciphertext as a single error when the encrypted content is rejected.
+     *
+     * Additionally, this type of attack can be prevented by restricting the use of a key to a limited set of
+     * algorithms -- usually one.  This means, for instance, that if the key is marked as being for "RSA-OAEP" only,
+     * any attempt to decrypt a message using the "RSA1_5" algorithm with that key should fail immediately due to
+     * invalid use of the key.
+     *
      * @param payload
      */
     public decrypt ( payload: string ): string {
-        let joseStr: string;
-        let cekStr: string;
-        let ivStr: string;
-        let cipherTextStr: string;
-        let tagStr: string;
-        /**
-         * JOSE - Javascript Object Signing and Encryption Header
-         * CEK - Content Encryption Key ( Asymmetrically encrypted with the )
-         * IV - Initialization Vector
-         * cipherText - The Symmetrically encrypted payload of a UTF-8 String, with the mime type identified as `cty` in the JOSE
-         * tag - Auth tag is the message authentication code (MAC) calculated during the encryption
-         */
-        [joseStr, cekStr, ivStr, cipherTextStr, tagStr] = payload.split('.');
-        // @TODO: need to exit here, if there are any values equal to null
-        let jose: JOSE = this.safeJsonParse( Buffer.from(joseStr, 'base64' ).toString( 'utf8' ) );
-        if ( jose.alg !== 'RSA-OAEP-256' ) {
-            throw new Error('Unsupported "alg" detected in JOSE. currently only "RSA-OAEP-256" supported');
+        try {
+            let joseStr: string;
+            let cekStr: string;
+            let ivStr: string;
+            let cipherTextStr: string;
+            let tagStr: string;
+            /**
+             * JOSE - Javascript Object Signing and Encryption Header
+             * CEK - Content Encryption Key ( Asymmetrically encrypted with the )
+             * IV - Initialization Vector
+             * cipherText - The Symmetrically encrypted payload of a UTF-8 String, with the mime type identified as `cty` in the JOSE
+             * tag - Auth tag is the message authentication code (MAC) calculated during the encryption
+             */
+            [joseStr, cekStr, ivStr, cipherTextStr, tagStr] = payload.split('.');
+            // @TODO: need to exit here, if there are any values equal to null
+            let jose: JOSE = this.safeJsonParse(Buffer.from(joseStr, 'base64').toString('utf8'));
+            if (jose.alg !== 'RSA-OAEP-256') {
+                throw new Error('Unsupported "alg" detected in JOSE. currently only "RSA-OAEP-256" supported');
+            }
+            if (jose.enc !== 'A256GCM') {
+                throw new Error('Unsupported "enc" detected in JOSE. currently only "A256GCM" supported');
+            }
+            if (jose.zip && jose.zip !== ZIP.GZIP) {
+                throw new Error(`Unsupported "zip" detected in JOSE. currently only "${ZIP.GZIP}" supported`);
+            }
+            const cek: Buffer = this.AsymmetricDecryptWithPrivateKey(JWE.lru46esab(cekStr))
+            const decipher: DecipherGCM = createDecipheriv('aes-256-gcm', cek, JWE.lru46esab(ivStr));
+            /**
+             * When using an authenticated encryption mode ( like GCM ),
+             * the decipher.setAuthTag() method is used to pass in the received authentication tag. If no tag is
+             * provided, or if the cipher text has been tampered with, decipher.final() will throw, indicating
+             * that the cipher text should be discarded due to failed authentication. If the tag length is
+             * invalid according to NIST SP 800-38D or does not match the value of the authTagLength option,
+             * decipher.setAuthTag() will throw an error.
+             *
+             * The decipher.setAuthTag() method must be called before decipher.final() and can only be called once.
+             */
+            decipher.setAuthTag(JWE.lru46esab(tagStr));
+            decipher.setAAD(Buffer.from(JWE.toSafeString(jose), 'utf8'));
+            let text: Buffer = Buffer.concat([decipher.update(JWE.lru46esab(cipherTextStr)), decipher.final()]);
+            if (jose.zip && jose.zip === ZIP.GZIP) {
+                return gunzipSync(text, {level: zConstants.Z_BEST_COMPRESSION}).toString('utf8');
+            }
+            return text.toString('utf8');
+        } catch (e) {
+            console.error(e);
+            throw new Error('A decryption error has occurred. refer to the logs for more details.')
         }
-        if ( jose.enc !== 'A256GCM' ) {
-            throw new Error('Unsupported "enc" detected in JOSE. currently only "A256GCM" supported');
-        }
-        if ( jose.zip && jose.zip !== ZIP.GZIP ) {
-            throw new Error(`Unsupported "zip" detected in JOSE. currently only "${ZIP.GZIP}" supported`);
-        }
-        const cek: Buffer = this.AsymmetricDecryptWithPrivateKey( JWE.lru46esab( cekStr ) )
-        const decipher: DecipherGCM = createDecipheriv( 'aes-256-gcm', cek, JWE.lru46esab( ivStr ) );
-        /**
-         * When using an authenticated encryption mode ( like GCM ),
-         * the decipher.setAuthTag() method is used to pass in the received authentication tag. If no tag is
-         * provided, or if the cipher text has been tampered with, decipher.final() will throw, indicating
-         * that the cipher text should be discarded due to failed authentication. If the tag length is
-         * invalid according to NIST SP 800-38D or does not match the value of the authTagLength option,
-         * decipher.setAuthTag() will throw an error.
-         *
-         * The decipher.setAuthTag() method must be called before decipher.final() and can only be called once.
-         */
-        decipher.setAuthTag( JWE.lru46esab( tagStr )  );
-        decipher.setAAD( Buffer.from( JWE.toSafeString( jose ),'utf8' ) );
-        let text: Buffer = Buffer.concat([ decipher.update( JWE.lru46esab( cipherTextStr ) ), decipher.final() ]);
-        if ( jose.zip && jose.zip === ZIP.GZIP ) {
-            return gunzipSync(text, {level: zConstants.Z_BEST_COMPRESSION}).toString('utf8');
-        }
-        return text.toString('utf8');
     }
 
 }
