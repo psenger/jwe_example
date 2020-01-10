@@ -5,7 +5,8 @@
   "main": "dist/index.js",
   "scripts": {
     "test": "jest --forceExit --coverage --verbose",
-    "tsc": "tsc"
+    "pretest": "npm run prepare",
+    "prepare": "tsc"
   },
   "engines": {
     "node": ">=12"
