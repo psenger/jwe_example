@@ -103,6 +103,18 @@ describe('jwe_example',()=>{
             const hydratedMessage = JSON.parse( JWS.decode( senderA_SignedMessage ) );
             expect( hydratedMessage ).toEqual( originalMessage );
         });
+        test('should detect tampering', () => {
+            const senderA_SignedMessage = JWS.encode(JSON.stringify(originalMessage), {
+                key: SenderKeys.privateKey,
+                format: 'pem',
+                type: 'pkcs1',
+                passphrase: SenderKeys.passphrase
+            });
+            const [joseStr, message, sig] = senderA_SignedMessage.split('.');
+            const tamperedMessage = [joseStr,`${message}eyJfaWQiOiI1ZTE`,sig].join('.');
+            const answer = JWS.verify(tamperedMessage, SenderKeys.publicKey);
+            expect(answer).toBeFalsy();
+        });
     });
     test('should encrypt and sign correctly',()=> {
         let Sender = BuildAKey();
