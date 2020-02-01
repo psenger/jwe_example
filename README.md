@@ -98,7 +98,7 @@ This second value is again a base 64 encoded UTF8 string. * NOT ENCRYPTED *
 
 ### Signature
 
-THe Last section is the base 64 encoded Signature ( based on the alg ). In this case, we are using the private key to digitally sign the payload and sharing the public key so people can 
+The Last section is the base 64 encoded Signature ( based on the alg ). In this case, we are using the private key to digitally sign the payload and sharing the public key so people can verify it.
 
 ``TuVQ6y60_bP2yoFLqrgrbGbYHJ1_ptw3rsbSTG7BBs2-KqWzRkRQw8iRlNa3ComyKmcy5rQdewJPdv1EJal9N9dFW-1peUlLw9iApDOBmiRsj5l16AJ9DgtnVI-8eXskUC_YxG-mVV8g72JgmNea4MMzHsak5qnWGdiDgYfp7I5CN3iqvWH3EVax8K9XKBjkw-uxzVDUAkjySFAYznJyyJDMfcJmjHE4pYbWkit1vBTeZFVn0M7JWjmuUDiMP6tCngJ3_FONXczmp9nKldHb_sd2Dha7YFtiiD5y7CVFmn53mWdo-ZXBDYqmMgstocL-yBjqkoYAnEzfw6LiBRP2qA``
      
